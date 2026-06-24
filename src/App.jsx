@@ -1,218 +1,227 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { supabase } from './supabaseClient';
 
-// Simulación de datos iniciales de la ACUSB
-const PETICIONES_INICIALES = [
-  {
-    id: 1,
-    usuario: 'Anónimo',
-    categoria: 'Estudios',
-    texto:
-      'Por los parciales de la semana 8 en la USB, mucha ansiedad en la comunidad.',
-    votos: 14,
-    orado: false,
-  },
-  {
-    id: 2,
-    usuario: 'María G.',
-    categoria: 'Salud',
-    texto: 'Recuperación de mi abuela tras su operación de esta mañana.',
-    votos: 8,
-    orado: true,
-  },
-  {
-    id: 3,
-    usuario: 'Juan Pérez',
-    categoria: 'Familia',
-    texto: 'Restauración y paz en los hogares de todo el equipo de líderes.',
-    votos: 22,
-    orado: false,
-  },
-];
-
-export default function AcusbPrayerApp() {
-  const [peticiones, setPeticiones] = useState(PETICIONES_INICIALES);
+export default function App() {
+  // --- ESTADOS DE LA APLICACIÓN ---
+  const [peticiones, setPeticiones] = useState([]);
   const [nuevaPeticion, setNuevaPeticion] = useState('');
-  const [categoriaSel, setCategoriaSel] = useState('Estudios');
-  const [anonimo, setAnonimo] = useState(false);
-  const [filtro, setFiltro] = useState('Todas');
+  const [categoria, setCategoria] = useState('Espiritual');
+  const [esAnonima, setEsAnonima] = useState(false);
+  const [cargando, setCargando] = useState(true);
 
-  const manejarCrearPeticion = (e) => {
-    e.preventDefault();
+  // --- EFECTOS (Carga inicial) ---
+  useEffect(() => {
+    cargarPeticiones();
+  }, []);
+
+  // --- FUNCIONES ASÍNCRONAS (CONEXIÓN SUPABASE) ---
+
+  // 1. Cargar peticiones desde la nube
+  const cargarPeticiones = async () => {
+    try {
+      setCargando(true);
+      const { data, error } = await supabase
+        .from('peticiones')
+        .select('*')
+        .order('creado_en', { ascending: false });
+
+      if (error) throw error;
+      setPeticiones(data || []);
+    } catch (err) {
+      console.error("Error cargando peticiones:", err.message);
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  // 2. Guardar una nueva petición en la base de datos
+  const guardarNuevaPeticion = async (e) => {
+    e.preventDefault(); // Previene que la página se recargue al enviar el formulario
     if (!nuevaPeticion.trim()) return;
 
-    const nueva = {
-      id: Date.now(),
-      usuario: anonimo ? 'Anónimo' : 'Usuario ACUSB',
-      categoria: categoriaSel,
-      texto: nuevaPeticion,
-      votos: 0,
-      orado: false,
-    };
+    try {
+      const { error } = await supabase
+        .from('peticiones')
+        .insert([
+          {
+            texto: nuevaPeticion,
+            categoria: categoria,
+            es_anonima: esAnonima,
+            nombre_usuario: esAnonima ? 'Anónimo' : 'Hermano USB'
+          }
+        ]);
 
-    setPeticiones([nueva, ...peticiones]);
-    setNuevaPeticion('');
-    setAnonimo(false);
+      if (error) throw error;
+
+      // Limpiar formulario tras el éxito
+      setNuevaPeticion('');
+      setEsAnonima(false);
+      
+      // Recargar la lista en tiempo real
+      await cargarPeticiones();
+    } catch (err) {
+      console.error("Error guardando petición:", err.message);
+    }
   };
 
-  const alternarOracion = (id) => {
-    setPeticiones(
-      peticiones.map((p) => {
-        if (p.id === id) {
-          return {
-            ...p,
-            orado: !p.orado,
-            votos: p.orado ? p.votos - 1 : p.votos + 1,
-          };
-        }
-        return p;
-      })
-    );
+  // 3. Incrementar contador ("¡He orado por esto!")
+  const registrarIntercesion = async (peticionId, contadorActual) => {
+    try {
+      const { error } = await supabase
+        .from('peticiones')
+        .update({ contador_oraciones: contadorActual + 1 })
+        .eq('id', peticionId);
+
+      if (error) throw error;
+      
+      // Recargar datos para actualizar los contadores en la interfaz
+      await cargarPeticiones();
+    } catch (err) {
+      console.error("Error al registrar oración:", err.message);
+    }
   };
 
-  const peticionesFiltradas =
-    filtro === 'Todas'
-      ? peticiones
-      : peticiones.filter((p) => p.categoria === filtro);
-
+  // --- DISEÑO DE LA INTERFAZ (UI) ---
   return (
-    <div className="min-h-screen bg-[#FAF8F5] text-[#2C251C] font-sans antialiased pb-12">
-      {/* NAVBAR SUPERIOR */}
-      <header className="sticky top-0 z-50 bg-[#EED167] border-b-4 border-[#2C251C] px-4 py-3 shadow-md flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {/* Silueta simplificada del pez ACUSB */}
-          <div className="w-10 h-10 bg-[#2C251C] rounded-full flex items-center justify-center text-[#EED167] font-bold text-xs">
-            🐟
-          </div>
+    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans">
+      {/* Encabezado Principal */}
+      <header className="bg-gradient-to-r应用 from-cyan-600 to-blue-700 text-white shadow-md">
+        <div className="max-w-4xl mx-auto px-4 py-6 flex flex-col sm:flex-row justify-between items-center gap-4">
           <div>
-            <h1 className="font-black text-xl tracking-tight leading-none text-[#2C251C]">
-              ACUSB Prays
+            <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
+              <span>🙏</span> ACUSBprays
             </h1>
-            <span className="text-xs font-bold text-[#2C251C]/80">
-              Intercesión Universitaria
-            </span>
+            <p className="text-cyan-100 text-xs sm:text-sm font-medium mt-0.5">
+              Red de Intercesión Universitaria • USB
+            </p>
           </div>
-        </div>
-        <div className="bg-[#2C251C] text-[#EED167] px-3 py-1 rounded-full text-xs font-bold">
-          🔥 Racha: 5 Días
+          <div className="bg-white/10 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm">
+            👥 Comunidad de Apoyo y Fe
+          </div>
         </div>
       </header>
 
-      <main className="max-w-md mx-auto px-4 mt-6">
-        {/* SECCIÓN CREATIVA: AGREGAR PETICIÓN */}
-        <section className="bg-white rounded-2xl border-2 border-[#2C251C] p-4 shadow-[4px_4px_0px_0px_rgba(44,37,28,1)] mb-6">
-          <h2 className="font-bold text-lg mb-3 flex items-center gap-2">
-            📝 Levantar una Petición
-          </h2>
-          <form onSubmit={manejarCrearPeticion} className="space-y-3">
-            <textarea
-              value={nuevaPeticion}
-              onChange={(e) => setNuevaPeticion(e.target.value)}
-              placeholder="¿Por qué nos unimos a orar hoy?..."
-              className="w-full h-24 p-3 bg-[#FAF8F5] rounded-xl border border-[#2C251C]/30 focus:outline-none focus:border-[#2C251C] resize-none text-sm text-[#2C251C]"
-            />
+      {/* Contenido Principal */}
+      <main className="max-w-4xl mx-auto px-4 py-8 grid grid-cols-1 md:grid-cols-3 gap-8">
+        
+        {/* COLUMNA IZQUIERDA: Formulario */}
+        <section className="md:col-span-1">
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 sticky top-6">
+            <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+              <span>✍️</span> Levantar Petición
+            </h2>
+            
+            <form onSubmit={guardarNuevaPeticion} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                  ¿Cuál es tu necesidad?
+                </label>
+                <textarea
+                  value={nuevaPeticion}
+                  onChange={(e) => setNuevaPeticion(e.target.value)}
+                  placeholder="Describe detalladamente tu motivo de oración..."
+                  rows="4"
+                  className="w-full p-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:bg-white transition-all resize-none"
+                  required
+                />
+              </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <select
-                value={categoriaSel}
-                onChange={(e) => setCategoriaSel(e.target.value)}
-                className="bg-[#FAF8F5] border border-[#2C251C] rounded-lg px-2 py-1 text-xs font-bold focus:outline-none"
-              >
-                <option value="Estudios">Estudios / USB</option>
-                <option value="Salud">Salud</option>
-                <option value="Familia">Familia</option>
-                <option value="Espiritual">Crecimiento Espiritual</option>
-              </select>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                  Categoría
+                </label>
+                <select
+                  value={categoria}
+                  onChange={(e) => setCategoria(e.target.value)}
+                  className="w-full p-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:bg-white transition-all"
+                >
+                  <option value="Estudios">📚 Estudios / Exámenes</option>
+                  <option value="Salud">🏥 Salud / Bienestar</option>
+                  <option value="Familia">🏠 Familia / Hogar</option>
+                  <option value="Espiritual">🌱 Crecimiento Espiritual</option>
+                </select>
+              </div>
 
-              <label className="flex items-center gap-1.5 text-xs font-medium cursor-pointer">
+              <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                <span className="text-xs font-semibold text-slate-600">🕵️ ¿Publicar en Anónimo?</span>
                 <input
                   type="checkbox"
-                  checked={anonimo}
-                  onChange={(e) => setAnonimo(e.target.checked)}
-                  className="rounded text-[#2C251C] focus:ring-0 accent-[#2C251C]"
+                  checked={esAnonima}
+                  onChange={(e) => setEsAnonima(e.target.checked)}
+                  className="w-4 h-4 text-cyan-600 focus:ring-cyan-500 border-slate-300 rounded cursor-pointer"
                 />
-                Anónimo
-              </label>
+              </div>
 
               <button
                 type="submit"
-                className="bg-[#EED167] text-[#2C251C] font-black text-xs px-4 py-2 rounded-xl border-2 border-[#2C251C] active:translate-y-0.5 shadow-[2px_2px_0px_0px_rgba(44,37,28,1)] transition-transform"
+                className="w-full py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white font-bold text-sm rounded-xl transition-all shadow-sm active:scale-[0.98]"
               >
-                Publicar
+                🚀 Enviar al Altar
               </button>
-            </div>
-          </form>
+            </form>
+          </div>
         </section>
 
-        {/* FILTROS RÁPIDOS */}
-        <div className="flex gap-2 overflow-x-auto pb-3 mb-4 scrollbar-none">
-          {['Todas', 'Estudios', 'Salud', 'Familia', 'Espiritual'].map(
-            (cat) => (
-              <button
-                key={cat}
-                onClick={() => setFiltro(cat)}
-                className={`text-xs font-bold px-3 py-1.5 rounded-full border whitespace-nowrap transition-all ${
-                  filtro === cat
-                    ? 'bg-[#2C251C] text-[#EED167] border-[#2C251C]'
-                    : 'bg-white text-[#2C251C] border-[#2C251C]/20 hover:border-[#2C251C]'
-                }`}
-              >
-                {cat}
-              </button>
-            )
-          )}
-        </div>
+        {/* COLUMNA DERECHA: Listado de Peticiones */}
+        <section className="md:col-span-2 space-y-4">
+          <h2 className="text-lg font-bold text-slate-900 flex items-center justify-between">
+            <span className="flex items-center gap-2">🔥 Clamor en Vivo</span>
+            <span className="text-xs bg-slate-200 text-slate-600 px-2.5 py-1 rounded-full font-bold">
+              {peticiones.length} activos
+            </span>
+          </h2>
 
-        {/* LISTADO DE PETICIONES */}
-        <section className="space-y-4">
-          <h3 className="font-black text-sm uppercase tracking-wider text-[#2C251C]/60 px-1">
-            Peticiones de la Semana ({peticionesFiltradas.length})
-          </h3>
-
-          {peticionesFiltradas.map((peticion) => (
-            <article
-              key={peticion.id}
-              className={`p-4 rounded-2xl border-2 border-[#2C251C] bg-white transition-all shadow-[3px_3px_0px_0px_rgba(44,37,28,1)] ${
-                peticion.orado ? 'opacity-75 bg-[#FAF8F5]' : ''
-              }`}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-[#2C251C]/50">
-                  Por:{' '}
-                  <span className="text-[#2C251C] font-black">
-                    {peticion.usuario}
-                  </span>
-                </span>
-                <span className="bg-[#EED167]/40 text-[#2C251C] text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wide border border-[#2C251C]/20">
-                  {peticion.categoria}
-                </span>
-              </div>
-
-              <p className="text-sm font-medium leading-relaxed text-[#2C251C] mb-4">
-                {peticion.texto}
-              </p>
-
-              <div className="flex items-center justify-between border-t border-[#2C251C]/10 pt-3">
-                <span className="text-xs font-bold text-[#2C251C]/70">
-                  🙏 {peticion.votos} hermanos orando
-                </span>
-
-                <button
-                  onClick={() => alternarOracion(peticion.id)}
-                  className={`text-xs font-black px-4 py-2 rounded-xl border-2 border-[#2C251C] flex items-center gap-1.5 transition-all ${
-                    peticion.orado
-                      ? 'bg-emerald-500 text-white border-transparent shadow-none translate-y-0.5'
-                      : 'bg-[#EED167] text-[#2C251C] shadow-[2px_2px_0px_0px_rgba(44,37,28,1)] hover:-translate-y-0.5'
-                  }`}
+          {cargando ? (
+            <div className="bg-white p-8 text-center rounded-2xl border border-slate-100 text-slate-400 text-sm font-medium">
+              🔄 Conectando con Supabase y cargando peticiones...
+            </div>
+          ) : peticiones.length === 0 ? (
+            <div className="bg-white p-12 text-center rounded-2xl border border-dashed border-slate-200 text-slate-400 text-sm">
+              <span className="text-2xl block mb-2">🕊️</span> No hay peticiones activas en este momento. ¡Sé el primero en levantar una oración!
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {peticiones.map((peticion) => (
+                <article 
+                  key={peticion.id} 
+                  className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:border-slate-200 transition-all flex flex-col justify-between gap-4"
                 >
-                  {peticion.orado ? '✓ Orado Hoy' : 'Interceder'}
-                </button>
-              </div>
-            </article>
-          ))}
+                  <div>
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                      <span className="text-xs font-bold text-slate-400">
+                        👤 {peticion.nombre_usuario}
+                      </span>
+                      <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
+                        peticion.categoria === 'Estudios' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
+                        peticion.categoria === 'Salud' ? 'bg-rose-50 text-rose-700 border border-rose-100' :
+                        peticion.categoria === 'Familia' ? 'bg-purple-50 text-purple-700 border border-purple-100' :
+                        'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                      }`}>
+                        {peticion.categoria}
+                      </span>
+                    </div>
+                    <p className="text-sm font-medium text-slate-700 whitespace-pre-wrap leading-relaxed">
+                      {peticion.texto}
+                    </p>
+                  </div>
 
-          {peticionesFiltradas.length === 0 && (
-            <div className="text-center py-12 text-sm text-[#2C251C]/50 font-medium">
-              No hay peticiones registradas en este apartado aún.
+                  <div className="flex items-center justify-between border-t border-slate-50 pt-3">
+                    <span className="text-xs text-slate-400 font-medium">
+                      ⏱️ {new Date(peticion.creado_en).toLocaleDateString()}
+                    </span>
+                    <button
+                      onClick={() => registrarIntercesion(peticion.id, peticion.contador_oraciones)}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-cyan-50 hover:bg-cyan-100 active:bg-cyan-200 text-cyan-700 text-xs font-bold rounded-xl transition-colors group"
+                    >
+                      <span className="group-hover:scale-125 transition-transform block">🛐</span>
+                      Amén, he orado por esto 
+                      <span className="bg-cyan-700 text-white text-[10px] px-1.5 py-0.5 rounded-full ml-1">
+                        {peticion.contador_oraciones}
+                      </span>
+                    </button>
+                  </div>
+                </article>
+              ))}
             </div>
           )}
         </section>
