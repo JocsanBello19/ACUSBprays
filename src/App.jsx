@@ -9,23 +9,27 @@ export default function App() {
   const [esAnonima, setEsAnonima] = useState(false);
   const [cargando, setCargando] = useState(true);
 
-  // --- EFECTOS (Carga inicial) ---
+  // --- EFECTOS ---
   useEffect(() => {
     cargarPeticiones();
   }, []);
 
-  // --- FUNCIONES ASÍNCRONAS (CONEXIÓN SUPABASE) ---
+  // --- FUNCIONES ASÍNCRONAS ---
 
   // 1. Cargar peticiones desde la nube
   const cargarPeticiones = async () => {
     try {
       setCargando(true);
+      console.log("Intentando conectar y cargar desde Supabase...");
+      
       const { data, error } = await supabase
         .from('peticiones')
         .select('*')
         .order('creado_en', { ascending: false });
 
       if (error) throw error;
+      
+      console.log("Datos recibidos con éxito:", data);
       setPeticiones(data || []);
     } catch (err) {
       console.error("Error cargando peticiones:", err.message);
@@ -34,30 +38,33 @@ export default function App() {
     }
   };
 
-  // 2. Guardar una nueva petición en la base de datos
+  // 2. Guardar una nueva petición
   const guardarNuevaPeticion = async (e) => {
-    e.preventDefault(); // Previene que la página se recargue al enviar el formulario
+    e.preventDefault();
     if (!nuevaPeticion.trim()) return;
 
     try {
-      const { error } = await supabase
+      console.log("Enviando nueva petición a Supabase...");
+      const { data, error } = await supabase
         .from('peticiones')
         .insert([
           {
             texto: nuevaPeticion,
             categoria: categoria,
             es_anonima: esAnonima,
-            nombre_usuario: esAnonima ? 'Anónimo' : 'Hermano USB'
+            nombre_usuario: esAnonima ? 'Anónimo' : 'Hermano USB',
+            contador_oraciones: 0
           }
-        ]);
+        ])
+        .select(); // El .select() es obligatorio para que devuelva el estado exitoso
 
       if (error) throw error;
 
-      // Limpiar formulario tras el éxito
+      console.log("Petición guardada correctamente en la nube.");
       setNuevaPeticion('');
       setEsAnonima(false);
       
-      // Recargar la lista en tiempo real
+      // Forzar recarga inmediata de la lista
       await cargarPeticiones();
     } catch (err) {
       console.error("Error guardando petición:", err.message);
@@ -67,25 +74,25 @@ export default function App() {
   // 3. Incrementar contador ("¡He orado por esto!")
   const registrarIntercesion = async (peticionId, contadorActual) => {
     try {
+      const nuevoContador = (contadorActual || 0) + 1;
       const { error } = await supabase
         .from('peticiones')
-        .update({ contador_oraciones: contadorActual + 1 })
+        .update({ contador_oraciones: nuevoContador })
         .eq('id', peticionId);
 
       if (error) throw error;
       
-      // Recargar datos para actualizar los contadores en la interfaz
       await cargarPeticiones();
     } catch (err) {
       console.error("Error al registrar oración:", err.message);
     }
   };
 
-  // --- DISEÑO DE LA INTERFAZ (UI) ---
+  // --- INTERFAZ DE USUARIO ---
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans">
-      {/* Encabezado Principal */}
-      <header className="bg-gradient-to-r应用 from-cyan-600 to-blue-700 text-white shadow-md">
+      {/* Encabezado */}
+      <header className="bg-gradient-to-r from-cyan-600 to-blue-700 text-white shadow-md">
         <div className="max-w-4xl mx-auto px-4 py-6 flex flex-col sm:flex-row justify-between items-center gap-4">
           <div>
             <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
@@ -104,7 +111,7 @@ export default function App() {
       {/* Contenido Principal */}
       <main className="max-w-4xl mx-auto px-4 py-8 grid grid-cols-1 md:grid-cols-3 gap-8">
         
-        {/* COLUMNA IZQUIERDA: Formulario */}
+        {/* Formulario */}
         <section className="md:col-span-1">
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 sticky top-6">
             <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
@@ -119,7 +126,7 @@ export default function App() {
                 <textarea
                   value={nuevaPeticion}
                   onChange={(e) => setNuevaPeticion(e.target.value)}
-                  placeholder="Describe detalladamente tu motivo de oración..."
+                  placeholder="Describe tu motivo de oración..."
                   rows="4"
                   className="w-full p-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:bg-white transition-all resize-none"
                   required
@@ -143,7 +150,7 @@ export default function App() {
               </div>
 
               <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                <span className="text-xs font-semibold text-slate-600">🕵️ ¿Publicar en Anónimo?</span>
+                <span className="text-xs font-semibold text-slate-600">🕵️ ¿Anónimo?</span>
                 <input
                   type="checkbox"
                   checked={esAnonima}
@@ -162,7 +169,7 @@ export default function App() {
           </div>
         </section>
 
-        {/* COLUMNA DERECHA: Listado de Peticiones */}
+        {/* Listado */}
         <section className="md:col-span-2 space-y-4">
           <h2 className="text-lg font-bold text-slate-900 flex items-center justify-between">
             <span className="flex items-center gap-2">🔥 Clamor en Vivo</span>
@@ -177,7 +184,7 @@ export default function App() {
             </div>
           ) : peticiones.length === 0 ? (
             <div className="bg-white p-12 text-center rounded-2xl border border-dashed border-slate-200 text-slate-400 text-sm">
-              <span className="text-2xl block mb-2">🕊️</span> No hay peticiones activas en este momento. ¡Sé el primero en levantar una oración!
+              <span className="text-2xl block mb-2">🕊️</span> No hay peticiones activas. ¡Sé el primero en publicar!
             </div>
           ) : (
             <div className="space-y-4">
@@ -207,7 +214,7 @@ export default function App() {
 
                   <div className="flex items-center justify-between border-t border-slate-50 pt-3">
                     <span className="text-xs text-slate-400 font-medium">
-                      ⏱️ {new Date(peticion.creado_en).toLocaleDateString()}
+                      ⏱️ {peticion.creado_en ? new Date(peticion.creado_en).toLocaleDateString() : 'Reciente'}
                     </span>
                     <button
                       onClick={() => registrarIntercesion(peticion.id, peticion.contador_oraciones)}
@@ -216,7 +223,7 @@ export default function App() {
                       <span className="group-hover:scale-125 transition-transform block">🛐</span>
                       Amén, he orado por esto 
                       <span className="bg-cyan-700 text-white text-[10px] px-1.5 py-0.5 rounded-full ml-1">
-                        {peticion.contador_oraciones}
+                        {peticion.contador_oraciones || 0}
                       </span>
                     </button>
                   </div>
