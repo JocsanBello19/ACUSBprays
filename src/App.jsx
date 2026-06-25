@@ -9,38 +9,32 @@ export default function App() {
   const [esAnonima, setEsAnonima] = useState(false);
   const [cargando, setCargando] = useState(true);
   
-  // --- NUEVOS ESTADOS DE LA FASE 4 (FILTROS Y BUSQUEDA) ---
+  // --- NUEVOS ESTADOS (FILTROS Y BUSQUEDA) ---
   const [busqueda, setBusqueda] = useState('');
   const [categoriaActiva, setCategoriaActiva] = useState('Todas');
 
   // --- EFECTOS Y SUSCRIPCIÓN EN TIEMPO REAL ---
   useEffect(() => {
-    // 1. Carga inicial de datos
     cargarPeticiones();
 
-    // 2. Suscripción al Canal en Tiempo Real de Supabase
     const canalRealtime = supabase
       .channel('cambios-en-altares')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'peticiones' },
         (payload) => {
-          console.log('Cambio detectado en la nube en tiempo real:', payload);
-          // Recarga la lista automáticamente para todos los usuarios conectados
+          console.log('Cambio detectado en la nube:', payload);
           cargarPeticiones();
         }
       )
       .subscribe();
 
-    // Limpieza del canal cuando el usuario cierra la app
     return () => {
       supabase.removeChannel(canalRealtime);
     };
   }, []);
 
   // --- FUNCIONES ASÍNCRONAS ---
-
-  // Leer desde Supabase
   const cargarPeticiones = async () => {
     try {
       setCargando(true);
@@ -58,7 +52,6 @@ export default function App() {
     }
   };
 
-  // Guardar en Supabase
   const guardarNuevaPeticion = async (e) => {
     e.preventDefault();
     if (!nuevaPeticion.trim()) return;
@@ -74,8 +67,7 @@ export default function App() {
             nombre_usuario: esAnonima ? 'Anónimo' : 'Hermano USB',
             contador_oraciones: 0
           }
-        ])
-        .select();
+        ]);
 
       if (error) throw error;
       setNuevaPeticion('');
@@ -85,7 +77,6 @@ export default function App() {
     }
   };
 
-  // Reaccionar / Interceder ("Amén")
   const registrarIntercesion = async (peticionId, contadorActual) => {
     try {
       const { error } = await supabase
@@ -99,10 +90,16 @@ export default function App() {
     }
   };
 
-  // --- LÓGICA DE FILTRADO EN MEMORIA ---
+  // --- LÓGICA DE FILTRADO BLINDADA CONTRA DATOS NULOS ---
   const peticionesFiltradas = peticiones.filter((peticion) => {
-    const coincideBusqueda = peticion.texto.toLowerCase().includes(busqueda.toLowerCase());
-    const coincideCategoria = categoriaActiva === 'Todas' || peticion.categoria === categoriaActiva;
+    // Si el texto o la categoría vienen vacíos de la base de datos, los convierte en string vacío
+    const textoSeguro = peticion.texto ? peticion.texto.toLowerCase() : '';
+    const busquedaSegura = busqueda ? busqueda.toLowerCase() : '';
+    const categoriaSegura = peticion.categoria || '';
+
+    const coincideBusqueda = textoSeguro.includes(busquedaSegura);
+    const coincideCategoria = categoriaActiva === 'Todas' || categoriaSegura === categoriaActiva;
+    
     return coincideBusqueda && coincideCategoria;
   });
 
@@ -128,7 +125,6 @@ export default function App() {
       {/* Barra de Filtros y Búsqueda Global */}
       <section className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
         <div className="max-w-4xl mx-auto px-4 py-3 flex flex-col md:flex-row gap-4 items-center justify-between">
-          {/* Input de Búsqueda */}
           <div className="w-full md:w-72 relative">
             <span className="absolute left-3 top-2.5 text-slate-400 text-sm">🔍</span>
             <input
@@ -140,7 +136,6 @@ export default function App() {
             />
           </div>
 
-          {/* Botones de Filtro */}
           <div className="flex gap-1.5 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 scrollbar-none">
             {['Todas', 'Estudios', 'Salud', 'Familia', 'Espiritual'].map((cat) => (
               <button
