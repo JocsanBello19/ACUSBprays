@@ -1,20 +1,21 @@
 {
-    "short_name": "ACUSBprays",
-    "name": "ACUSBprays - Red de Intercesión",
-    "icons": [
-      {
-        "src": "/logo.jpg",
-        "type": "image/jpeg",
-        "sizes": "192x192"
-      },
-      {
-        "src": "/logo.jpg",
-        "type": "image/jpeg",
-        "sizes": "512x512"
-      }
-    ],
-    "start_url": ".",
-    "display": "standalone",
-    "theme_color": "#F4D03F",
-    "background_color": "#F8F5EE"
-  }
+  "short_name": "ACUSBprays",
+  "name": "ACUSBprays - Red de Intercesión",
+  "icons": [
+    {
+      "src": "/logo.png?v=2",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/logo.png?v=2",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#F4D03F",
+  "background_color": "#F8F5EE"
+}

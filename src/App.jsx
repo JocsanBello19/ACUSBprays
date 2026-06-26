@@ -127,7 +127,7 @@ export default function App() {
               
               <div className="w-16 h-16 bg-black rounded-full overflow-hidden shadow-[0_8px_20px_rgba(0,0,0,0.3)] border-2 border-[#3E2723]/90 flex-shrink-0 flex items-center justify-center p-1.5 transition-transform hover:scale-105 hover:rotate-3 duration-500">
                 <img 
-                  src="/logo.jpg" 
+                  src="/logo.png" 
                   alt="Logo ACUSB" 
                   className="w-full h-full object-contain drop-shadow-md"
                 />
