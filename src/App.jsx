@@ -1,40 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from './supabaseClient';
 
 export default function App() {
-  // --- ESTADOS DE LA APLICACIÓN ---
+  // --- ESTADOS GLOBALES ---
   const [peticiones, setPeticiones] = useState([]);
   const [nuevaPeticion, setNuevaPeticion] = useState('');
   const [categoria, setCategoria] = useState('Espiritual');
   const [esAnonima, setEsAnonima] = useState(false);
   const [cargando, setCargando] = useState(true);
   
-  // --- NUEVOS ESTADOS (FILTROS Y BUSQUEDA) ---
   const [busqueda, setBusqueda] = useState('');
   const [categoriaActiva, setCategoriaActiva] = useState('Todas');
 
-  // --- EFECTOS Y SUSCRIPCIÓN EN TIEMPO REAL ---
-  useEffect(() => {
-    cargarPeticiones();
-
-    const canalRealtime = supabase
-      .channel('cambios-en-altares')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'peticiones' },
-        (payload) => {
-          console.log('Cambio detectado en la nube:', payload);
-          cargarPeticiones();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(canalRealtime);
-    };
-  }, []);
-
-  // --- FUNCIONES ASÍNCRONAS ---
+  // --- LOGICA DE BASE DE DATOS ---
   const cargarPeticiones = async () => {
     try {
       setCargando(true);
@@ -46,7 +24,7 @@ export default function App() {
       if (error) throw error;
       setPeticiones(data || []);
     } catch (err) {
-      console.error("Error cargando peticiones:", err.message);
+      console.error("Error cargando:", err.message);
     } finally {
       setCargando(false);
     }
@@ -57,23 +35,19 @@ export default function App() {
     if (!nuevaPeticion.trim()) return;
 
     try {
-      const { error } = await supabase
-        .from('peticiones')
-        .insert([
-          {
-            texto: nuevaPeticion,
-            categoria: categoria,
-            es_anonima: esAnonima,
-            nombre_usuario: esAnonima ? 'Anónimo' : 'Hermano USB',
-            contador_oraciones: 0
-          }
-        ]);
+      const { error } = await supabase.from('peticiones').insert([{
+        texto: nuevaPeticion,
+        categoria: categoria,
+        es_anonima: esAnonima,
+        nombre_usuario: esAnonima ? 'Anónimo' : 'Hermano USB',
+        contador_oraciones: 0
+      }]);
 
       if (error) throw error;
       setNuevaPeticion('');
       setEsAnonima(false);
     } catch (err) {
-      console.error("Error guardando petición:", err.message);
+      console.error("Error guardando:", err.message);
     }
   };
 
@@ -86,65 +60,99 @@ export default function App() {
 
       if (error) throw error;
     } catch (err) {
-      console.error("Error al registrar oración:", err.message);
+      console.error("Error al orar:", err.message);
     }
   };
 
-  // --- LÓGICA DE FILTRADO BLINDADA CONTRA DATOS NULOS ---
-  const peticionesFiltradas = peticiones.filter((peticion) => {
-    // Si el texto o la categoría vienen vacíos de la base de datos, los convierte en string vacío
-    const textoSeguro = peticion.texto ? peticion.texto.toLowerCase() : '';
-    const busquedaSegura = busqueda ? busqueda.toLowerCase() : '';
-    const categoriaSegura = peticion.categoria || '';
+  // --- EFECTOS EN TIEMPO REAL ---
+  useEffect(() => {
+    cargarPeticiones();
+    const canalRealtime = supabase
+      .channel('cambios-en-altares')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'peticiones' }, () => {
+        cargarPeticiones();
+      })
+      .subscribe();
 
-    const coincideBusqueda = textoSeguro.includes(busquedaSegura);
-    const coincideCategoria = categoriaActiva === 'Todas' || categoriaSegura === categoriaActiva;
-    
-    return coincideBusqueda && coincideCategoria;
-  });
+    return () => supabase.removeChannel(canalRealtime);
+  }, []);
+
+  // --- RENDIMIENTO TOP: Filtro Memorizado ---
+  const peticionesFiltradas = useMemo(() => {
+    return peticiones.filter((peticion) => {
+      const textoSeguro = peticion.texto ? peticion.texto.toLowerCase() : '';
+      const busquedaSegura = busqueda ? busqueda.toLowerCase() : '';
+      const categoriaSegura = peticion.categoria || '';
+      return textoSeguro.includes(busquedaSegura) && 
+             (categoriaActiva === 'Todas' || categoriaSegura === categoriaActiva);
+    });
+  }, [peticiones, busqueda, categoriaActiva]);
+
+  // --- DICCIONARIO DE COLORES POR CATEGORÍA ---
+  // Mantenemos colores suaves para las etiquetas para no saturar el diseño
+  const colorCategoria = {
+    Estudios: 'bg-blue-100/60 text-blue-800 border-blue-200',
+    Salud: 'bg-rose-100/60 text-rose-800 border-rose-200',
+    Familia: 'bg-purple-100/60 text-purple-800 border-purple-200',
+    Espiritual: 'bg-emerald-100/60 text-emerald-800 border-emerald-200'
+  };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans">
-      {/* Encabezado */}
-      <header className="bg-gradient-to-r from-cyan-600 to-blue-700 text-white shadow-md">
-        <div className="max-w-4xl mx-auto px-4 py-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
-              <span>🙏</span> ACUSBprays
-            </h1>
-            <p className="text-cyan-100 text-xs sm:text-sm font-medium mt-0.5">
-              Red de Intercesión Universitaria • USB
-            </p>
+    <div className="min-h-screen bg-[#FAFAFA] text-[#3E2723] font-sans selection:bg-[#F4D03F]/40 selection:text-[#3E2723]">
+      
+      {/* ENCABEZADO ACUSB (Marrón Profundo y Dorado) */}
+      <header className="bg-gradient-to-r from-[#2e1d1a] via-[#3E2723] to-[#2e1d1a] text-white shadow-xl shadow-[#3E2723]/20 border-b border-[#F4D03F]/30 sticky top-0 z-50">
+        <div className="max-w-6xl mx-auto px-4 py-5 sm:py-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className="text-center sm:text-left flex flex-col sm:flex-row items-center gap-4">
+            {/* Espacio para el logo, usando un emoji dorado como placeholder */}
+            <div className="bg-[#F4D03F] text-[#3E2723] p-2.5 rounded-full shadow-lg shadow-[#F4D03F]/20 animate-pulse">
+              🐟
+            </div>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-black tracking-tight flex items-center justify-center sm:justify-start drop-shadow-md">
+                <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#F4D03F] to-[#f9e79f]">
+                  ACUSBprays
+                </span>
+              </h1>
+              <p className="text-[#f9e79f]/80 text-[11px] sm:text-xs font-medium mt-0.5 tracking-wider uppercase">
+                Red de Intercesión • Univ. Simón Bolívar
+              </p>
+            </div>
           </div>
-          <div className="bg-white/10 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm animate-pulse">
-            🟢 Conectado en Tiempo Real
+          <div className="bg-white/5 hover:bg-white/10 transition-colors cursor-default border border-[#F4D03F]/20 px-4 py-2 rounded-full text-[11px] font-bold backdrop-blur-md shadow-inner flex items-center gap-2 text-[#f9e79f]">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            </span>
+            Conexión Celestial Activa
           </div>
         </div>
       </header>
 
-      {/* Barra de Filtros y Búsqueda Global */}
-      <section className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex flex-col md:flex-row gap-4 items-center justify-between">
-          <div className="w-full md:w-72 relative">
-            <span className="absolute left-3 top-2.5 text-slate-400 text-sm">🔍</span>
+      {/* BARRA DE BÚSQUEDA Y FILTROS FLOTANTE */}
+      <section className="bg-white/90 backdrop-blur-xl border-b border-[#e7e7e7] shadow-sm relative z-40">
+        <div className="max-w-6xl mx-auto px-4 py-3 sm:py-4 flex flex-col md:flex-row gap-4 items-center justify-between">
+          
+          <div className="w-full md:w-80 relative group">
+            <span className="absolute left-4 top-2.5 sm:top-3 text-gray-400 text-sm transition-transform group-hover:scale-110">🔍</span>
             <input
               type="text"
               placeholder="Buscar peticiones..."
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:bg-white transition-all"
+              className="w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm bg-gray-50 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-[#F4D03F]/60 focus:border-[#F4D03F] focus:bg-white transition-all shadow-inner text-gray-700"
             />
           </div>
 
-          <div className="flex gap-1.5 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 scrollbar-none">
+          <div className="flex gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 scrollbar-none px-1">
             {['Todas', 'Estudios', 'Salud', 'Familia', 'Espiritual'].map((cat) => (
               <button
                 key={cat}
                 onClick={() => setCategoriaActiva(cat)}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
+                className={`px-4 sm:px-5 py-2 sm:py-2.5 text-xs font-bold rounded-full transition-all duration-300 transform active:scale-95 whitespace-nowrap ${
                   categoriaActiva === cat
-                    ? 'bg-cyan-600 text-white shadow-sm'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    ? 'bg-[#F4D03F] text-[#3E2723] shadow-md shadow-[#F4D03F]/40 scale-105 border border-[#d4ac0d]'
+                    : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-[#3E2723] hover:border-[#F4D03F]/50 hover:-translate-y-0.5'
                 }`}
               >
                 {cat === 'Todas' ? '🌍 Todas' : cat === 'Estudios' ? '📚 Estudios' : cat === 'Salud' ? '🏥 Salud' : cat === 'Familia' ? '🏠 Familia' : '🌱 Espiritual'}
@@ -154,36 +162,37 @@ export default function App() {
         </div>
       </section>
 
-      {/* Contenido Principal */}
-      <main className="max-w-4xl mx-auto px-4 py-8 grid grid-cols-1 md:grid-cols-3 gap-8">
+      {/* CONTENEDOR PRINCIPAL */}
+      <main className="max-w-6xl mx-auto px-4 py-8 sm:py-12 grid grid-cols-1 lg:grid-cols-12 gap-8 sm:gap-10">
         
-        {/* Formulario Lateral */}
-        <section className="md:col-span-1">
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 sticky top-24">
-            <h2 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
-              <span>✍️</span> Levantar Petición
+        {/* PANEL LATERAL: LEVANTAR PETICIÓN */}
+        <aside className="lg:col-span-4 order-2 lg:order-1">
+          <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-xl shadow-gray-200/50 border border-gray-100 lg:sticky top-32 transition-all hover:shadow-2xl hover:shadow-[#F4D03F]/10">
+            <h2 className="text-lg sm:text-xl font-extrabold text-[#3E2723] mb-6 flex items-center gap-3">
+              <span className="p-2.5 bg-[#fef9e7] text-[#d4ac0d] rounded-xl">✍️</span> 
+              Elevar Petición
             </h2>
             
-            <form onSubmit={guardarNuevaPeticion} className="space-y-4">
-              <div>
+            <form onSubmit={guardarNuevaPeticion} className="space-y-5">
+              <div className="group">
                 <textarea
                   value={nuevaPeticion}
                   onChange={(e) => setNuevaPeticion(e.target.value)}
-                  placeholder="¿Por qué nos unimos a orar hoy? Describe tu motivo..."
+                  placeholder="¿Cuál es tu necesidad hoy? Escríbela aquí con confianza..."
                   rows="4"
-                  className="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:bg-white transition-all resize-none"
+                  className="w-full p-4 text-sm bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#F4D03F]/50 focus:border-[#F4D03F] focus:bg-white transition-all resize-none group-hover:border-[#F4D03F]/40 shadow-inner text-gray-700 placeholder-gray-400"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                <label className="block text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-2 pl-1">
                   Categoría
                 </label>
                 <select
                   value={categoria}
                   onChange={(e) => setCategoria(e.target.value)}
-                  className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:bg-white transition-all"
+                  className="w-full p-3.5 text-sm font-semibold bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F4D03F]/50 focus:bg-white transition-all cursor-pointer hover:border-[#F4D03F]/40 text-gray-700"
                 >
                   <option value="Estudios">📚 Estudios / Exámenes</option>
                   <option value="Salud">🏥 Salud / Bienestar</option>
@@ -192,80 +201,96 @@ export default function App() {
                 </select>
               </div>
 
-              <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                <span className="text-xs font-semibold text-slate-600">🕵️ ¿Publicar en Anónimo?</span>
+              <div className="flex items-center justify-between bg-gray-50/80 p-4 rounded-xl border border-gray-100 hover:bg-[#fef9e7] transition-colors cursor-pointer group" onClick={() => setEsAnonima(!esAnonima)}>
+                <div className="flex flex-col">
+                  <span className="text-sm font-bold text-gray-700 group-hover:text-[#3E2723]">Modo Anónimo</span>
+                  <span className="text-[10px] sm:text-[11px] text-gray-400 font-medium">Ocultar mi nombre real al publicar</span>
+                </div>
                 <input
                   type="checkbox"
                   checked={esAnonima}
-                  onChange={(e) => setEsAnonima(e.target.checked)}
-                  className="w-4 h-4 text-cyan-600 focus:ring-cyan-500 border-slate-300 rounded cursor-pointer"
+                  readOnly
+                  className="w-5 h-5 text-[#d4ac0d] focus:ring-[#F4D03F] border-gray-300 rounded-md cursor-pointer accent-[#d4ac0d]"
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white font-bold text-xs rounded-xl transition-all shadow-sm active:scale-[0.98]"
+                className="w-full py-4 bg-gradient-to-r from-[#F4D03F] to-[#f1c40f] hover:from-[#f1c40f] hover:to-[#d4ac0d] text-[#3E2723] font-black text-sm sm:text-base rounded-xl transition-all duration-300 shadow-lg shadow-[#F4D03F]/30 hover:shadow-[#F4D03F]/50 hover:-translate-y-1 active:scale-95 active:shadow-inner flex items-center justify-center gap-2 border border-[#d4ac0d]/50"
               >
-                🚀 Enviar al Altar
+                <span>🚀</span> Enviar al Altar
               </button>
             </form>
           </div>
-        </section>
+        </aside>
 
-        {/* Listado de Clamor */}
-        <section className="md:col-span-2 space-y-4">
-          <h2 className="text-base font-bold text-slate-900 flex items-center justify-between">
-            <span className="flex items-center gap-2">🔥 Clamor Activo</span>
-            <span className="text-xs bg-slate-200 text-slate-600 px-2.5 py-1 rounded-full font-bold">
-              {peticionesFiltradas.length} visibles
-            </span>
-          </h2>
+        {/* LISTADO DE PETICIONES */}
+        <section className="lg:col-span-8 space-y-6 order-1 lg:order-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-gray-200/80 gap-3">
+            <h2 className="text-xl sm:text-2xl font-extrabold text-[#3E2723] flex items-center gap-3">
+              <span className="text-2xl sm:text-3xl">🔥</span> Clamor Activo
+            </h2>
+            <div className="flex items-center gap-2 bg-white px-4 py-1.5 rounded-full border border-gray-200 shadow-sm w-max">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#d4ac0d] animate-pulse"></span>
+              <span className="text-xs font-bold text-gray-600">
+                {peticionesFiltradas.length} {peticionesFiltradas.length === 1 ? 'petición' : 'peticiones'}
+              </span>
+            </div>
+          </div>
 
           {cargando && peticiones.length === 0 ? (
-            <div className="bg-white p-8 text-center rounded-2xl border border-slate-100 text-slate-400 text-xs">
-              🔄 Sincronizando con el Altar Celestial...
+            <div className="flex flex-col items-center justify-center py-20 sm:py-32 bg-white rounded-3xl border border-gray-100 shadow-sm">
+              <div className="w-12 h-12 border-4 border-[#fef9e7] border-t-[#d4ac0d] rounded-full animate-spin mb-4"></div>
+              <p className="text-gray-400 text-sm font-medium">Sincronizando el altar celestial...</p>
             </div>
           ) : peticionesFiltradas.length === 0 ? (
-            <div className="bg-white p-12 text-center rounded-2xl border border-dashed border-slate-200 text-slate-400 text-xs">
-              <span className="text-xl block mb-2">🕊️</span> No se encontraron peticiones coincidentes.
+            <div className="bg-white py-20 sm:py-32 px-8 text-center rounded-3xl border border-dashed border-gray-300 shadow-sm flex flex-col items-center">
+              <span className="text-5xl sm:text-6xl block mb-4 opacity-40">🕊️</span>
+              <h3 className="text-gray-600 font-bold text-lg sm:text-xl mb-2">El altar está en silencio</h3>
+              <p className="text-gray-400 text-sm max-w-sm mx-auto">No hay peticiones que coincidan con estos filtros. ¡Sé el primero en levantar una oración hoy!</p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="grid gap-5 sm:gap-6">
               {peticionesFiltradas.map((peticion) => (
                 <article 
                   key={peticion.id} 
-                  className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all flex flex-col justify-between gap-4 animate-fadeIn"
+                  className="group bg-white p-6 sm:p-7 rounded-3xl border border-gray-100 shadow-sm hover:shadow-xl hover:shadow-gray-200/60 transition-all duration-300 hover:-translate-y-1 flex flex-col gap-5 relative overflow-hidden"
                 >
-                  <div>
-                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                      <span className="text-[11px] font-bold text-slate-400">
-                        👤 {peticion.nombre_usuario}
-                      </span>
-                      <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
-                        peticion.categoria === 'Estudios' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
-                        peticion.categoria === 'Salud' ? 'bg-rose-50 text-rose-700 border border-rose-100' :
-                        peticion.categoria === 'Familia' ? 'bg-purple-50 text-purple-700 border border-purple-100' :
-                        'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                      }`}>
+                  {/* Decoración de borde izquierdo dorado corporativo */}
+                  <div className="absolute left-0 top-0 bottom-0 w-1.5 sm:w-2 bg-[#F4D03F]"></div>
+
+                  <div className="pl-2 sm:pl-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gray-50 flex items-center justify-center text-base sm:text-lg border border-gray-200 shadow-inner">
+                          {peticion.es_anonima ? '🕵️' : '👤'}
+                        </div>
+                        <span className="text-sm sm:text-base font-bold text-[#3E2723]">
+                          {peticion.nombre_usuario}
+                        </span>
+                      </div>
+                      <span className={`text-[10px] sm:text-xs font-bold px-3 sm:px-4 py-1 sm:py-1.5 rounded-full uppercase tracking-wider border ${colorCategoria[peticion.categoria] || colorCategoria.Espiritual}`}>
                         {peticion.categoria}
                       </span>
                     </div>
-                    <p className="text-xs font-medium text-slate-700 whitespace-pre-wrap leading-relaxed">
+                    
+                    <p className="text-sm sm:text-base font-medium text-gray-700 whitespace-pre-wrap leading-relaxed">
                       {peticion.texto}
                     </p>
                   </div>
 
-                  <div className="flex items-center justify-between border-t border-slate-50 pt-3">
-                    <span className="text-[10px] text-slate-400 font-semibold">
-                      ⏱️ {peticion.creado_en ? new Date(peticion.creado_en).toLocaleDateString() : 'Reciente'}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-t border-gray-100 pt-5 pl-2 sm:pl-3 gap-4">
+                    <span className="text-xs text-gray-400 font-semibold flex items-center gap-1.5">
+                      <span>⏱️</span> {peticion.creado_en ? new Date(peticion.creado_en).toLocaleDateString() : 'Hace un momento'}
                     </span>
+                    
                     <button
                       onClick={() => registrarIntercesion(peticion.id, peticion.contador_oraciones)}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-cyan-50 hover:bg-cyan-100 active:bg-cyan-200 text-cyan-700 text-[11px] font-bold rounded-xl transition-colors group"
+                      className="flex items-center justify-center sm:justify-start gap-2.5 px-5 py-2.5 bg-gray-50 hover:bg-[#fef9e7] border border-gray-200 hover:border-[#F4D03F] text-gray-600 hover:text-[#3E2723] text-xs sm:text-sm font-bold rounded-xl transition-all duration-300 active:scale-95 group/btn shadow-sm hover:shadow-md hover:shadow-[#F4D03F]/20 w-full sm:w-auto"
                     >
-                      <span className="group-hover:scale-125 transition-transform block">🛐</span>
-                      Amén, me uno en oración
-                      <span className="bg-cyan-700 text-white text-[9px] px-1.5 py-0.5 rounded-full ml-0.5 font-black">
+                      <span className="group-hover/btn:scale-125 group-active/btn:scale-90 transition-transform block text-base">🛐</span>
+                      Me uno en oración
+                      <span className="bg-gray-200 group-hover/btn:bg-[#d4ac0d] group-hover/btn:text-white text-gray-700 text-[10px] sm:text-xs px-2.5 py-0.5 rounded-full transition-colors font-black">
                         {peticion.contador_oraciones || 0}
                       </span>
                     </button>
