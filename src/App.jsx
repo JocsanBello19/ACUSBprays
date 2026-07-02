@@ -1,6 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from './supabaseClient';
 
+// Función auxiliar para ignorar mayúsculas y acentos
+const normalizarTexto = (texto) => {
+  if (!texto) return '';
+  return texto
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+};
+
 export default function App() {
   const [peticiones, setPeticiones] = useState([]);
   const [nombreAutor, setNombreAutor] = useState('');
@@ -78,6 +87,25 @@ export default function App() {
     }
   };
 
+  // NUEVA FUNCIÓN: Guarda el asignado en Supabase
+  const actualizarAsignado = async (peticionId, nuevoAsignado) => {
+    try {
+      const { error } = await supabase
+        .from('peticiones')
+        .update({ asignado_a: nuevoAsignado })
+        .eq('id', peticionId);
+
+      if (error) throw error;
+    } catch (err) {
+      console.error("Error al asignar:", err.message);
+    }
+  };
+
+  // NUEVA FUNCIÓN: Actualiza el texto en pantalla mientras escribes
+  const handleCambioAsignacion = (id, valor) => {
+    setPeticiones(peticiones.map(p => p.id === id ? { ...p, asignado_a: valor } : p));
+  };
+
   useEffect(() => {
     cargarPeticiones();
     const canalRealtime = supabase
@@ -91,19 +119,20 @@ export default function App() {
   }, []);
 
   const peticionesFiltradas = useMemo(() => {
+    const busquedaNormalizada = normalizarTexto(busqueda);
+
     return peticiones.filter((peticion) => {
-      const textoSeguro = peticion.texto ? peticion.texto.toLowerCase() : '';
-      const busquedaSegura = busqueda ? busqueda.toLowerCase() : '';
+      const textoNormalizado = normalizarTexto(peticion.texto);
+      const nombreNormalizado = normalizarTexto(peticion.nombre_usuario);
       const categoriaSegura = peticion.categoria || '';
       
-      const pasaBusqueda = textoSeguro.includes(busquedaSegura);
+      const pasaBusqueda = textoNormalizado.includes(busquedaNormalizada) || 
+                           nombreNormalizado.includes(busquedaNormalizada);
 
-      // Si estamos en la pestaña Testimonios, solo mostramos las respondidas
       if (categoriaActiva === 'Testimonios') {
         return pasaBusqueda && peticion.respondida === true;
       }
 
-      // Para las demás categorías, mostramos según corresponda
       return pasaBusqueda && 
              (categoriaActiva === 'Todas' || categoriaSegura === categoriaActiva);
     });
@@ -332,11 +361,9 @@ export default function App() {
                               ? 'bg-emerald-50 border-emerald-100' 
                               : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200 group-hover:scale-110'
                           }`}>
-                            {/* Icono de detective para anónimo, muñequito orando para personas con nombre */}
                             {peticion.es_anonima ? '🕵️' : '🙏'}
                           </div>
                           
-                          {/* Nombre del usuario - Verde si está respondida, normal si no */}
                           <span className={`text-base sm:text-lg font-black tracking-tight flex items-center gap-2 ${
                             peticion.respondida ? 'text-emerald-600' : 'text-[#3E2723]'
                           }`}>
@@ -363,6 +390,46 @@ export default function App() {
                       <p className={`text-sm sm:text-base font-semibold whitespace-pre-wrap leading-loose ${peticion.respondida ? 'text-gray-600' : 'text-gray-600'}`}>
                         {peticion.texto}
                       </p>
+
+                      {/* CAMPO DE ASIGNACIÓN PARA LA REUNIÓN (MODIFICADO AQUÍ) */}
+                      <div className={`mt-5 bg-gradient-to-r from-[#FFFCF5] to-white border rounded-xl p-3 sm:px-4 flex flex-col sm:flex-row sm:items-center gap-3 shadow-[0_2px_15px_rgba(244,208,63,0.05)] relative overflow-hidden group/asignar transition-all duration-300 ${
+                        peticion.respondida 
+                          ? 'border-emerald-100' 
+                          : 'border-[#F4D03F]/30 hover:border-[#F4D03F]/60 hover:shadow-[0_4px_20px_rgba(244,208,63,0.15)]'
+                      }`}>
+                        <div className={`absolute left-0 top-0 bottom-0 w-1 transition-colors duration-300 ${
+                          peticion.respondida ? 'bg-emerald-300' : 'bg-[#F4D03F]/40 group-focus-within/asignar:bg-[#F4D03F]'
+                        }`}></div>
+                        
+                        <div className="flex items-center gap-2.5">
+                           <span className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-[10px] sm:text-sm shadow-inner transition-colors ${
+                             peticion.respondida 
+                               ? 'bg-emerald-50 text-emerald-500 border border-emerald-100' 
+                               : 'bg-gradient-to-br from-[#FFF9E6] to-[#FFF2C8] border border-[#F4D03F]/50 text-[#3E2723]'
+                           }`}>
+                              📝
+                           </span>
+                           <span className={`text-[10px] font-black uppercase tracking-[0.15em] whitespace-nowrap ${
+                             peticion.respondida ? 'text-emerald-600' : 'text-[#795548]'
+                           }`}>
+                              Asignado a:
+                           </span>
+                        </div>
+                        
+                        <input
+                          type="text"
+                          placeholder={peticion.respondida ? "Intercesión finalizada" : "Escribe quién orará por esto en la reunión"}
+                          value={peticion.asignado_a || ''}
+                          onChange={(e) => handleCambioAsignacion(peticion.id, e.target.value)}
+                          onBlur={(e) => actualizarAsignado(peticion.id, e.target.value)}
+                          disabled={peticion.respondida}
+                          className={`w-full flex-1 bg-transparent border-b-2 border-dashed px-2 py-1.5 text-sm sm:text-base font-bold focus:outline-none transition-all duration-300 ${
+                            peticion.respondida 
+                              ? 'border-transparent text-emerald-700 cursor-not-allowed bg-emerald-50/30 rounded-md placeholder-emerald-400/70' 
+                              : 'border-[#F4D03F]/40 focus:border-[#d4ac0d] text-[#3E2723] hover:border-[#F4D03F]/70 focus:bg-[#FFFDF5] rounded-t-md placeholder-[#a68c87]'
+                          }`}
+                        />
+                      </div>
                     </div>
 
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between border-t border-gray-200/60 pt-6 pl-2 gap-5 mt-2">
@@ -372,7 +439,6 @@ export default function App() {
                       </span>
                       
                       <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-                        {/* Botón: Me uno en oración */}
                         <button
                           onClick={() => !peticion.respondida && registrarIntercesion(peticion.id, peticion.contador_oraciones)}
                           disabled={peticion.respondida}
@@ -391,7 +457,6 @@ export default function App() {
                           </span>
                         </button>
 
-                        {/* Botón: Ya Dios respondió */}
                         <button
                           onClick={() => !peticion.respondida && marcarComoRespondida(peticion.id)}
                           disabled={peticion.respondida}
