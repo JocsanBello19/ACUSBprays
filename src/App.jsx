@@ -219,19 +219,19 @@ export default function App() {
 
         <main className="max-w-7xl mx-auto px-4 py-8 sm:py-14 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-14">
           
-          {/* FORMULARIO PREMIUM DEGRADADO */}
+          {/* FORMULARIO OPTIMIZADO Y COMPACTO CON STICKY Y SCROLL INTERNO */}
           <aside className="lg:col-span-4 order-2 lg:order-1">
-            <div className="bg-gradient-to-br from-white/95 via-white/80 to-white/60 backdrop-blur-xl p-7 sm:p-9 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-white lg:sticky top-24 transition-all">
-              <h2 className="text-xl sm:text-2xl font-black text-[#3E2723] mb-7 flex items-center gap-3 tracking-tight">
-                <span className="p-3 bg-gradient-to-br from-[#fcf7e3] to-[#f4ecd8] text-[#d4ac0d] rounded-2xl shadow-[0_4px_15px_rgba(241,196,15,0.15)] border border-[#f1c40f]/30">✍️</span> 
+            <div className="bg-gradient-to-br from-white/95 via-white/80 to-white/60 backdrop-blur-xl p-5 sm:p-6 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-white lg:sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto transition-all [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-gray-300/60 [&::-webkit-scrollbar-thumb]:rounded-full">
+              <h2 className="text-lg sm:text-xl font-black text-[#3E2723] mb-4 flex items-center gap-3 tracking-tight">
+                <span className="p-2.5 bg-gradient-to-br from-[#fcf7e3] to-[#f4ecd8] text-[#d4ac0d] rounded-xl shadow-[0_4px_15px_rgba(241,196,15,0.15)] border border-[#f1c40f]/30">✍️</span> 
                 Elevar Petición
               </h2>
               
-              <form onSubmit={guardarNuevaPeticion} className="space-y-6">
+              <form onSubmit={guardarNuevaPeticion} className="space-y-4">
                 
                 {/* CAMPO DE NOMBRE */}
                 <div>
-                  <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-2.5 pl-1">
+                  <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-1.5 pl-1">
                     Tu Nombre
                   </label>
                   <input
@@ -240,7 +240,7 @@ export default function App() {
                     onChange={(e) => setNombreAutor(e.target.value)}
                     disabled={esAnonima}
                     placeholder={esAnonima ? "Modo anónimo activo" : "Ej. Juan Pérez"}
-                    className={`w-full py-3.5 px-5 text-sm sm:text-base font-bold border-2 rounded-2xl focus:outline-none focus:ring-4 transition-all duration-300 shadow-inner ${
+                    className={`w-full py-2.5 px-4 text-sm font-bold border-2 rounded-xl focus:outline-none focus:ring-4 transition-all duration-300 shadow-inner ${
                       esAnonima 
                         ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed' 
                         : 'bg-white/60 border-gray-100 focus:ring-[#F4D03F]/20 focus:border-[#F4D03F]/60 text-gray-700 focus:bg-white'
@@ -249,27 +249,27 @@ export default function App() {
                 </div>
 
                 <div className="relative group">
-                  <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-2.5 pl-1">
+                  <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-1.5 pl-1">
                     Tu Clamor
                   </label>
                   <textarea
                     value={nuevaPeticion}
                     onChange={(e) => setNuevaPeticion(e.target.value)}
                     placeholder="¿Cuál es tu petición de oración hoy? Escríbela con confianza para interceder juntos"
-                    rows="4"
-                    className="w-full p-5 text-sm sm:text-base bg-white/60 border-2 border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-[#F4D03F]/20 focus:border-[#F4D03F]/60 focus:bg-white transition-all duration-300 resize-none text-gray-800 font-medium placeholder-gray-400 shadow-inner"
+                    rows="3"
+                    className="w-full p-3.5 text-sm bg-white/60 border-2 border-gray-100 rounded-xl focus:outline-none focus:ring-4 focus:ring-[#F4D03F]/20 focus:border-[#F4D03F]/60 focus:bg-white transition-all duration-300 resize-none text-gray-800 font-medium placeholder-gray-400 shadow-inner"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-2.5 pl-1">
+                  <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-1.5 pl-1">
                     Categoría del Clamor
                   </label>
                   <select
                     value={categoria}
                     onChange={(e) => setCategoria(e.target.value)}
-                    className="w-full py-4 px-3 sm:px-4 text-sm sm:text-base font-bold bg-white/60 border-2 border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-[#F4D03F]/20 focus:border-[#F4D03F]/60 transition-all duration-300 text-gray-700 cursor-pointer shadow-inner appearance-none focus:bg-white"
+                    className="w-full py-2.5 px-3 text-sm font-bold bg-white/60 border-2 border-gray-100 rounded-xl focus:outline-none focus:ring-4 focus:ring-[#F4D03F]/20 focus:border-[#F4D03F]/60 transition-all duration-300 text-gray-700 cursor-pointer shadow-inner appearance-none focus:bg-white"
                   >
                     <option value="Estudios">📚 Estudios / Exámenes</option>
                     <option value="Salud">🏥 Salud / Bienestar</option>
@@ -280,25 +280,25 @@ export default function App() {
 
                 {/* MODO ANÓNIMO */}
                 <div 
-                  className="flex items-center justify-between bg-gradient-to-r from-white to-gray-50 py-5 px-5 rounded-2xl border-2 border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] cursor-pointer hover:border-[#F4D03F]/40 hover:shadow-md transition-all duration-300 group" 
+                  className="flex items-center justify-between bg-gradient-to-r from-white to-gray-50 py-3 px-4 rounded-xl border-2 border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] cursor-pointer hover:border-[#F4D03F]/40 hover:shadow-md transition-all duration-300 group" 
                   onClick={() => setEsAnonima(!esAnonima)}
                 >
                   <div className="flex flex-col pl-1">
-                    <span className="text-sm sm:text-base font-black text-[#3E2723] group-hover:text-[#d4ac0d] transition-colors">Modo Anónimo</span>
-                    <span className="text-[11px] sm:text-xs text-gray-500 font-medium mt-0.5">Ocultar mi nombre real</span>
+                    <span className="text-xs sm:text-sm font-black text-[#3E2723] group-hover:text-[#d4ac0d] transition-colors">Modo Anónimo</span>
+                    <span className="text-[10px] sm:text-[11px] text-gray-500 font-medium">Ocultar mi nombre real</span>
                   </div>
-                  <div className={`w-14 h-7 rounded-full transition-colors duration-300 flex items-center px-1 ${esAnonima ? 'bg-[#3E2723]' : 'bg-gray-200'}`}>
-                    <div className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-300 ${esAnonima ? 'translate-x-7' : 'translate-x-0'}`}></div>
+                  <div className={`w-12 h-6 rounded-full transition-colors duration-300 flex items-center px-1 ${esAnonima ? 'bg-[#3E2723]' : 'bg-gray-200'}`}>
+                    <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ${esAnonima ? 'translate-x-6' : 'translate-x-0'}`}></div>
                   </div>
                 </div>
 
                 {/* BOTÓN ENVIAR */}
                 <button
                   type="submit"
-                  className="w-full py-5 sm:py-6 bg-gradient-to-r from-[#3E2723] via-[#4a2e29] to-[#3E2723] hover:from-[#2a1a17] hover:to-[#3a221f] text-[#F4D03F] border border-[#d4ac0d]/30 font-black text-base sm:text-lg rounded-2xl transition-all duration-500 shadow-[0_12px_25px_rgba(62,39,35,0.25)] hover:shadow-[0_20px_35px_rgba(62,39,35,0.4)] hover:-translate-y-1.5 active:scale-[0.98] active:translate-y-0 flex items-center justify-center gap-3 overflow-hidden relative group/submit"
+                  className="w-full py-3.5 sm:py-4 bg-gradient-to-r from-[#3E2723] via-[#4a2e29] to-[#3E2723] hover:from-[#2a1a17] hover:to-[#3a221f] text-[#F4D03F] border border-[#d4ac0d]/30 font-black text-sm sm:text-base rounded-xl transition-all duration-500 shadow-[0_12px_25px_rgba(62,39,35,0.25)] hover:shadow-[0_20px_35px_rgba(62,39,35,0.4)] hover:-translate-y-1 active:scale-[0.98] active:translate-y-0 flex items-center justify-center gap-2.5 overflow-hidden relative group/submit"
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 group-hover/submit:opacity-100 transition-opacity duration-700 -translate-x-full group-hover/submit:animate-[shimmer_1.5s_infinite]"></div>
-                  <span className="text-xl drop-shadow-md group-hover/submit:scale-110 transition-transform">🚀</span> 
+                  <span className="text-lg drop-shadow-md group-hover/submit:scale-110 transition-transform">🚀</span> 
                   <span className="tracking-wide">Enviar al Altar</span>
                 </button>
               </form>
