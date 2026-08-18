@@ -221,7 +221,7 @@ export default function App() {
           
           {/* FORMULARIO PREMIUM DEGRADADO */}
           <aside className="lg:col-span-4 order-2 lg:order-1">
-            <div className="bg-gradient-to-br from-white/95 via-white/80 to-white/60 backdrop-blur-xl p-7 sm:p-9 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-white lg:sticky top-44 transition-all">
+            <div className="bg-gradient-to-br from-white/95 via-white/80 to-white/60 backdrop-blur-xl p-7 sm:p-9 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-white lg:sticky top-24 transition-all">
               <h2 className="text-xl sm:text-2xl font-black text-[#3E2723] mb-7 flex items-center gap-3 tracking-tight">
                 <span className="p-3 bg-gradient-to-br from-[#fcf7e3] to-[#f4ecd8] text-[#d4ac0d] rounded-2xl shadow-[0_4px_15px_rgba(241,196,15,0.15)] border border-[#f1c40f]/30">✍️</span> 
                 Elevar Petición
@@ -391,7 +391,7 @@ export default function App() {
                         {peticion.texto}
                       </p>
 
-                      {/* CAMPO DE ASIGNACIÓN PARA LA REUNIÓN (MODIFICADO AQUÍ) */}
+                      {/* CAMPO DE ASIGNACIÓN PARA LA REUNIÓN */}
                       <div className={`mt-5 bg-gradient-to-r from-[#FFFCF5] to-white border rounded-xl p-3 sm:px-4 flex flex-col sm:flex-row sm:items-center gap-3 shadow-[0_2px_15px_rgba(244,208,63,0.05)] relative overflow-hidden group/asignar transition-all duration-300 ${
                         peticion.respondida 
                           ? 'border-emerald-100' 
